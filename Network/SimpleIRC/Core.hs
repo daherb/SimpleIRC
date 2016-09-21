@@ -52,7 +52,8 @@ import Control.Monad
 import Control.Concurrent
 import Network.SimpleIRC.Messages
 import Data.Unique
-import Control.Exception (try, SomeException)
+import Control.Exception (try, SomeException,Exception,throw)
+import Data.Typeable
 import System.Timeout
 import Data.Time
 #if ! MIN_VERSION_time(1,5,0)
@@ -148,6 +149,9 @@ instance Show IrcEvent where
   show (Disconnect  _) = "IrcEvent - Disconnect"
 
 type EventFunc = (MIrc -> IrcMessage -> IO ())
+
+data IrcEventException = IrcEE String IrcEvent deriving (Show,Typeable)
+instance Exception IrcEventException
 
 connect' :: HostName -> PortNumber -> Bool -> IO Connection
 connect' host port secure = do
@@ -485,7 +489,8 @@ eventFunc (Quit    f) = f
 eventFunc (Nick    f) = f
 eventFunc (Notice  f) = f
 eventFunc (RawMsg  f) = f
-eventFunc (Disconnect _) = error "SimpleIRC: unexpected event"
+eventFunc f@(Disconnect _) = throw (IrcEE "SimpleIRC: unexpected event" f)
+-- error "SimpleIRC: unexpected event"
 
 -- |Sends a raw command to the server
 sendRaw :: MIrc -> B.ByteString -> IO ()

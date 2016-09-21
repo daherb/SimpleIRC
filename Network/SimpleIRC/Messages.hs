@@ -19,8 +19,10 @@ module Network.SimpleIRC.Messages
 where
 import qualified Data.ByteString.Char8 as B
 import Control.Arrow hiding (first)
+import Control.Exception
 import Data.Typeable
 
+    
 -- PING :asimov.freenode.net
 -- :haskellTestBot!~test@host86-177-151-242.range86-177.btcentralplus.com JOIN :#()
 
@@ -59,6 +61,9 @@ data IrcMessage = IrcMessage
   , mRaw    :: B.ByteString
   } deriving (Show, Typeable)
 
+data IrcMessageException = IrcME String B.ByteString deriving (Show,Typeable)
+instance Exception IrcMessageException
+
 -- |Parse a raw IRC message
 parse :: B.ByteString -> IrcMessage
 parse txt =
@@ -68,7 +73,8 @@ parse txt =
     [first, code, chan, msg]        -> parse4 first code chan msg noCarriage
     [first, code, chan, other, msg] -> parse5 first code chan other msg noCarriage
     server:code:nick:chan:other     -> parseOther server code nick chan other noCarriage
-    _                               -> error "SimpleIRC: unexpected message format"
+    _                               -> throw (IrcME "SimpleIRC: unexpected message format" txt)
+-- error "SimpleIRC: unexpected message format"
 
   where noCarriage = takeCarriageRet txt
         split      = smartSplit noCarriage
