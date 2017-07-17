@@ -14,7 +14,8 @@ module Network.SimpleIRC.Messages
   ( IrcMessage(..)
   , Command(..)
   , parse
-  , showCommand
+  , showCommand,
+    IrcMessageException(..)
   )
 where
 import qualified Data.ByteString.Char8 as B

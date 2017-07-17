@@ -50,6 +50,7 @@ import Data.List (delete)
 import Data.Char (isNumber)
 import Control.Monad
 import Control.Concurrent
+import Control.Exception
 import Network.SimpleIRC.Messages
 import Data.Unique
 import Control.Exception (try, SomeException,Exception,throw)
@@ -288,42 +289,42 @@ execCmdsLoop mIrc = do
 
 
 listenLoop :: MIrc -> IO ()
-listenLoop s = do
-  server <- readMVar s
+listenLoop s =
+  catch
+    (do
+        server <- readMVar s
+        
+        let c = fromJust $ sSock server
 
-  let c = fromJust $ sSock server
-
-  -- RFC 2812, max message line length
-  lineOrCleanup <- timeout (sPingTimeoutInterval server) (try $ connectionGetLine 512 c :: IO (Either SomeException B.ByteString))
-
-  case lineOrCleanup of
-    Nothing -> do
-      debugWrite server $ "Timeout reached"
-      cleanup server
-    Just (Left ex) -> do
-      debugWrite server $ B.pack $ "Exception caught: " ++ show ex
-      cleanup server
-
-    Just (Right line) -> do
-      server1 <- takeMVar s
-
-      -- Print the received line.
-      debugWrite server1 $ (B.pack ">> ") `B.append` line
-
-      -- Call the internal events
-      newServ <- foldM (\sr f -> f sr (parse line)) server1 internalEvents
-
-      putMVar s newServ -- Put the MVar back.
-
-      let parsed = (parse line)
-      -- Call the events
-      callEvents s parsed
-
-      -- Call the RawMsg Events.
-      events s (RawMsg undefined) parsed
-
-
-      listenLoop s
+        -- RFC 2812, max message line length
+        lineOrCleanup <- timeout (sPingTimeoutInterval server) (try $ connectionGetLine 512 c :: IO (Either SomeException B.ByteString))
+        
+        case lineOrCleanup of
+          Nothing -> do
+            debugWrite server $ "Timeout reached"
+            cleanup server
+          Just (Left ex) -> do
+            debugWrite server $ B.pack $ "Exception caught: " ++ show ex
+            cleanup server
+          Just (Right line) -> do
+            server1 <- takeMVar s
+        
+            -- Print the received line.
+            debugWrite server1 $ (B.pack ">> ") `B.append` line
+          
+            -- Call the internal events
+            newServ <- foldM (\sr f -> f sr (parse line)) server1 internalEvents
+        
+            putMVar s newServ -- Put the MVar back.
+        
+            let parsed = (parse line)
+            -- Call the events
+            callEvents s parsed
+        
+            -- Call the RawMsg Events.
+            events s (RawMsg undefined) parsed
+            listenLoop s)
+    (\ex -> putStrLn $ show (ex :: SomeException))
   where
     cleanup server = do
       modifyMVar_ s (\serv -> return $ serv {sSock = Nothing})
