@@ -324,7 +324,7 @@ listenLoop s =
             -- Call the RawMsg Events.
             events s (RawMsg undefined) parsed
             listenLoop s)
-    (\ex -> putStrLn $ show (ex :: SomeException))
+    (\ex -> do { putStrLn $ show (ex :: SomeException) ; listenLoop s})
   where
     cleanup server = do
       modifyMVar_ s (\serv -> return $ serv {sSock = Nothing})
