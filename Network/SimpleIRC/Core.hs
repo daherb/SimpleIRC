@@ -257,6 +257,7 @@ toServer config conn cmdChan debug = do
 
 greetServer :: IrcServer -> IO IrcServer
 greetServer server = do
+  putStrLn "Trying Reconnect"
   case mpass of
     Nothing -> return ()
     Just pass -> write server $ "PASS " `B.append` pass
